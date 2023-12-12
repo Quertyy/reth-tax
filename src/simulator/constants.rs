@@ -1,5 +1,10 @@
-use ethers::types::Address;
+use ethers::{prelude::*, utils::parse_ether};
 use std::str::FromStr;
+
+
+pub fn _tax_checker_starting_balance() -> U256 {
+    parse_ether(420).unwrap()
+}
 
 pub fn tax_checker_address() -> Address {
     Address::from_str("00000000000000000000000000000000F3370000").unwrap()
