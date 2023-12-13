@@ -22,3 +22,4 @@ parking_lot = "0.12.1"
 ethers = { git = "https://github.com/gakonst/ethers-rs", features = ["ws", "rustls", "abigen","ipc"] }
 revm = { git = "https://github.com/bluealloy/revm", rev = "fcbd2d9", features = ["ethersdb", "serde", "std"] }
 reth = { git = "https://github.com/paradigmxyz/reth", branch = "main" }
+alloy-primitives = "0.5"

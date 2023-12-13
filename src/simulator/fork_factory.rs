@@ -7,6 +7,7 @@ use super::{
 };
 use ethers::{prelude::*, types::BlockId};
 use futures::channel::mpsc::{channel, Sender};
+use reth::providers::{BlockNumReader, StateProvider};
 use revm::{
     db::{CacheDB, EmptyDB},
     primitives::{AccountInfo, Address as rAddress, U256 as rU256},
@@ -31,11 +32,14 @@ impl ForkFactory {
     //
     // Returns:
     // `(ForkFactory, GlobalBackend)`: ForkFactory instance and the GlobalBackend it talks to
-    fn new(
-        provider: Arc<Provider<Ws>>,
+    fn new<Provider>(
+        provider: Arc<Provider>,
         initial_db: CacheDB<EmptyDB>,
         fork_block: Option<BlockId>,
-    ) -> (Self, GlobalBackend) {
+    ) -> (Self, GlobalBackend<Provider>) 
+    where
+        Provider: StateProvider + BlockNumReader + 'static
+    {
         let (backend, backend_rx) = channel(1);
         let handler = GlobalBackend::new(backend_rx, fork_block, provider, initial_db.clone());
         (Self { backend, initial_db }, handler)
@@ -52,11 +56,14 @@ impl ForkFactory {
     }
 
     // Create a new sandbox environment with backend running on own thread
-    pub fn new_sandbox_factory(
-        provider: Arc<Provider<Ws>>,
+    pub fn new_sandbox_factory<Provider>(
+        provider: Arc<Provider>,
         initial_db: CacheDB<EmptyDB>,
         fork_block: Option<BlockId>,
-    ) -> Self {
+    ) -> Self 
+    where
+        Provider: StateProvider + BlockNumReader + 'static
+    {
         let (shared, handler) = Self::new(provider, initial_db, fork_block);
 
         // spawn a light-weight thread with a thread-local async runtime just for

@@ -12,9 +12,9 @@ use revm::{
     },
     EVM,
 };
+use reth::providers::{StateProvider, BlockNumReader};
 
 use super::{builder::SimulatorBuilder, fork_db::ForkDB, DatabaseError};
-
 use super::get_current_unix_time_seconds;
 
 #[derive(Debug, thiserror::Error)]
@@ -34,18 +34,24 @@ pub struct TransactInfo {
     pub data: Bytes,
 }
 
-pub struct Simulator {
-    pub builder: SimulatorBuilder,
+pub struct Simulator<Provider> 
+where
+    Provider: StateProvider + BlockNumReader + 'static
+{
+    pub builder: SimulatorBuilder<Provider>,
     pub evm: EVM<ForkDB>,
 }
 
-impl Simulator {
-    pub async fn new(builder: SimulatorBuilder) -> Self {
-        let current_block = builder.wss_provider.get_block_number().await.unwrap();
+impl<Provider> Simulator<Provider> 
+where 
+    Provider: StateProvider + BlockNumReader +'static
+{
+    pub async fn new(builder: SimulatorBuilder<Provider>) -> Self {
+        let current_block = builder.provider.last_block_number().unwrap();
         let mut evm: revm::EVM<ForkDB> = revm::EVM::new();
         let sandbox = builder.fork_factory.new_sandbox_fork();
         evm.database(sandbox);
-        evm.env.block.number = rU256::from(current_block.as_u64());
+        evm.env.block.number = rU256::from(current_block);
         evm.env.block.timestamp = rU256::from(get_current_unix_time_seconds());
         evm.env.block.basefee = rU256::from(1000000);
         evm.env.block.coinbase =

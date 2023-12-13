@@ -13,19 +13,23 @@ use revm::{
     db::{CacheDB, EmptyDB},
     primitives::{Bytecode, U256 as rU256},
 };
+use reth::providers::{StateProvider, BlockNumReader};
 
 #[allow(dead_code)]
-pub async fn get_tax(
+pub async fn get_tax<Provider>(
     token_in: Address,
     pair: Address,
     fees: U256,
-    wss_provider: Arc<Provider<Ws>>,
-) -> Option<(U256, U256)> {
+    provider: Arc<Provider>,
+) -> Option<(U256, U256)> 
+where
+    Provider: BlockNumReader + StateProvider + 'static
+{
     let cache_db: CacheDB<EmptyDB> = CacheDB::new(EmptyDB::default());
-    let mut fork_factory = ForkFactory::new_sandbox_factory(wss_provider.clone(), cache_db, None);
+    let mut fork_factory = ForkFactory::new_sandbox_factory(provider.clone(), cache_db, None);
     inject_tax_checker_code(&mut fork_factory);
     insert_fake_approval(token_in, pair, &mut fork_factory);
-    let builder = SimulatorBuilder::new(wss_provider, fork_factory).await;
+    let builder = SimulatorBuilder::new(provider, fork_factory).await;
     
     let contract = BaseContract::from(parse_abi(&["function getTax(address,address,uint256)"]).unwrap());
     let tx_data = contract.encode("getTax", (pair, token_in, fees)).unwrap();
@@ -95,20 +99,21 @@ mod tests {
     use std::sync::Arc;
     use std::str::FromStr;
 
-    async fn get_ws_provider() -> Arc<Provider<Ws>> {
-        let ws_url = "ws://mainnet.querty.dev:8546";
+    async fn get_provider() -> Arc<Provider<Ws>> {
+        let ws_url = "ws://localhost:8546";
         let ws_provider = Provider::<Ws>::connect(ws_url).await.expect("Could not connect to rpc");
-        Arc::new(ws_provider)
+        Arc::new(ws_provider);
+        todo!()
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_get_token_taxes_univ2() {
-        let wss_provider = get_ws_provider().await;
+        let provider = get_provider().await;
 
         let token0 = Address::from_str("0x1396D6F2e9056954DFc2775204bB3e2Eb8ab8a5B").unwrap();
         let pair = Address::from_str("0x4305BCC56Bb35FaF3edf13421F8D3167df32faB3").unwrap();
 
-        let (buy_tax, sell_tax) = match get_tax(token0, pair, U256::from(997), wss_provider).await {
+        let (buy_tax, sell_tax) = match get_tax(token0, pair, U256::from(997), provider).await {
             Some(d) => d,
             None => {
                 return;

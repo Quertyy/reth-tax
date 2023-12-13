@@ -1,7 +1,7 @@
 // credit to Foundry's SharedBackend implmenetation:
 // https://github.com/foundry-rs/foundry/blob/master/crates/evm/src/executor/fork/backend.rs
 use ethers::{
-    providers::{Middleware, Provider, ProviderError, Ws},
+    providers::{Middleware, ProviderError},
     types::{Address, BigEndianHash, BlockId, H256, U256},
     utils::keccak256,
 };
@@ -12,6 +12,8 @@ use futures::{
     Future, FutureExt, Stream,
 };
 use hashbrown::{hash_map::Entry, HashMap};
+use reth::providers::{StateProvider, BlockNumReader};
+use reth::primitives::Address as rethAddress;
 use revm::{
     db::{CacheDB, EmptyDB},
     primitives::{
@@ -19,6 +21,7 @@ use revm::{
         U256 as rU256,
     },
 };
+
 use std::{
     collections::VecDeque,
     pin::Pin,
@@ -59,10 +62,13 @@ pub enum BackendFetchRequest {
 
 /// Holds db and provdier_db to fallback on so that
 /// we can make rpc calls for missing data
-pub struct GlobalBackend {
+pub struct GlobalBackend<Provider> 
+where
+    Provider: StateProvider + BlockNumReader + 'static
+{
     db: CacheDB<EmptyDB>,
     // used to make calls for missing data
-    provider: Arc<Provider<Ws>>,
+    provider: Arc<Provider>,
     block_num: Option<BlockId>,
     /// Requests currently in progress
     pending_requests: Vec<FetchRequestFuture<ProviderError>>,
@@ -78,12 +84,15 @@ pub struct GlobalBackend {
     queued_requests: VecDeque<BackendFetchRequest>,
 }
 
-impl GlobalBackend {
+impl<Provider> GlobalBackend<Provider> 
+where
+    Provider: StateProvider + BlockNumReader + 'static
+{
     // not so elegeant but create sim env from state diffs
     pub fn new(
         rx: Receiver<BackendFetchRequest>,
         block_num: Option<BlockId>,
-        provider: Arc<Provider<Ws>>,
+        provider: Arc<Provider>,
         initial_db: CacheDB<EmptyDB>,
     ) -> Self {
         Self {
@@ -98,7 +107,7 @@ impl GlobalBackend {
             queued_requests: Default::default(),
         }
     }
-
+    
     /// handle the request in queue in the future.
     ///
     /// We always check:
@@ -136,8 +145,8 @@ impl GlobalBackend {
     }
 
     /// process a request for an account
-    fn request_account(&mut self, address: rAddress, listener: AccountInfoSender) {
-        match self.account_requests.entry(address) {
+    fn request_account(&mut self, account_address: rAddress, listener: AccountInfoSender) {
+        match self.account_requests.entry(account_address) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().push(listener);
             }
@@ -147,15 +156,13 @@ impl GlobalBackend {
                 let block_num = self.block_num;
                 let fut = Box::pin(async move {
                     // convert from revm to ethers
-                    let address_ethers: Address = address.0.into();
+                    let alloy_address = rethAddress::from(account_address.to_fixed_bytes());
+                    let balance = provider.account_balance(alloy_address).unwrap().unwrap();
+                    let nonce = provider.account_nonce(alloy_address).unwrap().unwrap();
+                    let code = provider.account_code(alloy_address).unwrap().unwrap();
 
-                    let balance = provider.get_balance(address_ethers, block_num);
-                    let nonce = provider.get_transaction_count(address_ethers, block_num);
-                    let code = provider.get_code(address_ethers, block_num);
-                    let resp = tokio::try_join!(balance, nonce, code);
-
-                    let resp = resp.map(|(b, n, c)| (b.into(), n.as_u64(), c.0));
-                    (resp, address)
+                    let resp = (balance, nonce, code);
+                    (resp, account_address)
                 });
                 self.pending_requests.push(FetchRequestFuture::Basic(fut));
             }
@@ -227,7 +234,10 @@ impl GlobalBackend {
     }
 }
 
-impl Future for GlobalBackend {
+impl<Provider> Future for GlobalBackend<Provider> 
+where
+    Provider: StateProvider + BlockNumReader + 'static
+{
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

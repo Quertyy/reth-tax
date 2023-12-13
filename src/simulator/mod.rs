@@ -15,4 +15,4 @@ pub use helpers::*;
 
 mod builder;
 
-mod simulator;
+pub mod simulator;
