@@ -20,6 +20,6 @@ hashbrown = "0.14.3"
 parking_lot = "0.12.1"
 
 reth = { git = "https://github.com/paradigmxyz/reth", branch = "main" }
-alloy-dyn-abi = { git = "https://github.com/alloy-rs/core", branch = "main" }
-alloy-primitives = { git = "https://github.com/alloy-rs/core", branch = "main" }
+alloy-dyn-abi = "0.5.2"
+alloy-primitives = "0.5.2"
 async-trait = "0.1.74"

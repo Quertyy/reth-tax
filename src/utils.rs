@@ -1,4 +1,4 @@
-use alloy_primitives::{address, Address, Bytes, U256, keccak256};
+use reth::primitives::{address, Address, U256, Bytes, keccak256};
 use alloy_dyn_abi::DynSolValue;
 
 pub fn tax_checker_address() -> Address {
@@ -16,7 +16,8 @@ pub fn get_tax_checker_code() -> Bytes {
 
 pub fn insert_fake_approval<DB>(token: Address, pair: Address, db: &mut DB) {
     for i in 0..100 {
-
+        let slot_new = map_location(U256::from(i), pair, tax_checker_address());
+        
     }
 }
 
