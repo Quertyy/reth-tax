@@ -1,12 +1,20 @@
+mod utils;
+use utils::{get_tax_checker_code, tax_checker_address, tax_checker_controller_address};
 use clap::Parser;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
-use reth::{cli::{
+use reth::cli::{
     components::{RethNodeComponents, RethRpcComponents},
     config::RethRpcConfig,
     ext::{RethCliExt, RethNodeCommandConfig},
     Cli,
-}, rpc::eth::{EthTransactions, error::EthApiError}, primitives::{BlockId, BlockNumberOrTag}};
+}; 
 
+use reth::rpc::eth::{EthTransactions, error::EthApiError};
+use reth::primitives::{BlockId, BlockNumberOrTag, keccak256};
+use reth::revm::database::StateProviderDatabase;
+use reth::revm::primitives::{Env, ResultAndState, TxEnv, AccountInfo, U256, Bytecode};
+use reth::revm::db::CacheDB;
+use reth::revm::EVM;
 
 use alloy_primitives::Address;
 use std::sync::Arc;
@@ -69,9 +77,25 @@ where
         }
         let latest_block_id = BlockId::Number(BlockNumberOrTag::Latest);
         let (cfg, mut block_env, at) = self.eth_api.evm_env_at(latest_block_id).await?;
-
         
+        let _ = self.eth_api
+            .spawn_with_state_at_block(at, |state| {
+            let env = Env { cfg, block: block_env, tx: TxEnv::default() };
+            let mut db = CacheDB::new(StateProviderDatabase::new(state));
 
-        Ok((1,1))
+            let tax_checker_code = get_tax_checker_code();
+            let code_hash = keccak256(&tax_checker_code);
+            let tax_checker_bytecode = Bytecode::new_raw(tax_checker_code);
+            let account = AccountInfo::new(U256::from(69), 0, code_hash, tax_checker_bytecode);
+            db.insert_account_info(tax_checker_address(), account);
+            let mut evm = EVM::with_env(env);
+            evm.database(db);
+
+            
+            Ok(())
+        })
+        .await;
+    
+        Ok((1, 1))
     }
 }
