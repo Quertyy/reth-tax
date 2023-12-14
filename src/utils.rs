@@ -33,7 +33,7 @@ pub struct TaxInfo {
 pub enum TaxCallError {
     #[error("No pair address found for token {0:?}")]
     PairAddressDoesNotExist(Address),
-    #[error("Failed to fetch pair address for token {0:}:{1:?}")]
+    #[error("Failed to fetch pair address for token {0:}: {1:?}")]
     CallingPairReverts(Address, String),
     #[error("Get pair call halt")]
     CallingPairHalt,
@@ -49,7 +49,6 @@ impl TaxInfo {
             sell: None,
         }
     }
-
 
     // atm pair address can only be found from the uniwapv2 factory contract
     pub fn get_pair_address(&self, evm: &mut EvmStateProvider) -> Result<Address, TaxCallError> 
