@@ -23,3 +23,4 @@ ethers = { git = "https://github.com/gakonst/ethers-rs", features = ["ws", "rust
 revm = { git = "https://github.com/bluealloy/revm", rev = "fcbd2d9", features = ["ethersdb", "serde", "std"] }
 reth = { git = "https://github.com/paradigmxyz/reth", branch = "main" }
 alloy-primitives = "0.5"
+async-trait = "0.1.74"
