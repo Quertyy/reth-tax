@@ -39,14 +39,18 @@ pub fn get_pair_address(token: Address, evm: &mut EvmStateProvider) -> anyhow::R
     } else {
         (token, weth)
     };
+
     let call = getPairCall {
         token0: token_0,
         token1: token_1,
     };
-    evm.env.tx.transact_to = TransactTo::Call(univ2_factory);
     let tx_data = call.abi_encode();
+    
     evm.env.tx.data = tx_data.into();
+    evm.env.tx.transact_to = TransactTo::Call(univ2_factory);
+
     let ResultAndState { result, .. } = evm.transact().unwrap();
+
     if result.is_success() {
         let output = result.into_output().unwrap_or_default();
         let decoded = getPairCall::abi_decode_returns(&output, true).unwrap();
@@ -61,17 +65,15 @@ pub fn get_pair_address(token: Address, evm: &mut EvmStateProvider) -> anyhow::R
     }
 }
 
-pub fn insert_fake_approval<ExtDB>(tokens: Vec<Address>, pair: Address, db: &mut CacheDB<ExtDB>)
+pub fn insert_fake_approval<ExtDB>(token: Address, pair: Address, db: &mut CacheDB<ExtDB>)
 where
     ExtDB: DatabaseRef,
     <ExtDB as DatabaseRef>::Error: std::fmt::Debug,
 {
-    for token in tokens.iter() {
-        for i in 0..100 {
-            let slot_new = map_location(U256::from(i), pair, tax_checker_address());
-            let max_uint = U256::MAX;
-            db.insert_account_storage(*token, slot_new, max_uint).unwrap();
-        }
+    for i in 0..100 {
+        let slot_new = map_location(U256::from(i), pair, tax_checker_address());
+        let max_uint = U256::MAX;
+        db.insert_account_storage(token, slot_new, max_uint).unwrap();
     }
 }
 
