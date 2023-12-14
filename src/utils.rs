@@ -19,7 +19,7 @@ type EvmStateProvider = EVM<CacheDBStateProvider>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaxCallResult {
     Success(TaxInfo),
-    Error(TaxCallError)
+    CallError(TaxCallError)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
