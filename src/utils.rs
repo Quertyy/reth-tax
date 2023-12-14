@@ -1,6 +1,6 @@
 use reth::revm::db::{CacheDB, DatabaseRef};
 use reth::primitives::{address, Address, U256, Bytes, keccak256};
-use alloy_dyn_abi::DynSolValue;
+use alloy_dyn_abi::{DynSolValue, DynSolType};
 use alloy_sol_types::{SolCall, sol};
 
 pub fn tax_checker_address() -> Address {
@@ -41,18 +41,27 @@ pub fn map_location(slot: U256, key: Address, key_after: Address) -> U256 {
     slot
 }
 
+sol! {
+    #[derive(Debug)]
+    function getTax(
+        address pair, 
+        address tokenIn, 
+        uint256 dexFee
+    ) returns (uint256 buyTax, uint256 sellTax);
+}
+
 pub fn encode_call(token: Address, pair: Address) -> Vec<u8> {
-    sol! {
-        function getTax(
-            address pair, 
-            address tokenIn, 
-            uint256 dexFee
-        ) returns (uint256 buyTax, uint256 sellTax);
-    }
     let call = getTaxCall {
         pair,
         tokenIn: token,
         dexFee: U256::from(997),
     };
     call.abi_encode()
+}
+
+pub fn decode_success_call(output: Bytes) -> (U256, U256) {
+    let decoded = getTaxCall::abi_decode_returns(&output, true).unwrap();
+    let buy_tax = decoded.buyTax;
+    let sell_tax = decoded.sellTax;
+    (buy_tax / U256::from(100), sell_tax / U256::from(100))
 }
