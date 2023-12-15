@@ -1,0 +1,21 @@
+[package]
+name = "reth-tax"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "4.4.11"
+jsonrpsee = "0.20.3"
+serde = "1.0.193"
+
+thiserror = "1.0.50"
+eyre = "0.6.10"
+anyhow = "1.0.75"
+
+reth = { git = "https://github.com/paradigmxyz/reth", branch = "main" }
+alloy-dyn-abi = "0.5.2"
+alloy-sol-types = "0.5.2"
+alloy-primitives = "0.5.2"
+async-trait = "0.1.74"
